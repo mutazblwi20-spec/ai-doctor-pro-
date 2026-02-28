@@ -1,145 +1,64 @@
 import streamlit as st
-import pandas as pd
-import numpy as np
-from datetime import datetime
-from ai_features import (
-    calculate_risk,
-    generate_recommendations,
-    create_risk_chart,
-    save_patient,
-    load_patients,
-    generate_pdf_report,
-    analyze_medical_image
-)
+from ai_features import *
 
-# ---------------- PAGE CONFIG ----------------
+# ---------------- PAGE ----------------
 st.set_page_config(
     page_title="AI Doctor Pro",
     page_icon="🩺",
     layout="wide"
 )
 
-# ---------------- DARK MODE ----------------
+# ---------------- STYLE ----------------
 st.markdown("""
 <style>
-body {
-    background-color:#0e1117;
-    color:white;
+.main-title{
+    text-align:center;
+    font-size:42px;
+    font-weight:bold;
+    color:#0d6efd;
 }
-.block-container {
-    padding-top:2rem;
+.card{
+    background:white;
+    padding:20px;
+    border-radius:15px;
+    box-shadow:0 0 15px rgba(0,0,0,0.1);
 }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🩺 AI Doctor Pro — Medical AI Dashboard")
+st.markdown('<p class="main-title">🩺 AI Doctor Pro</p>', unsafe_allow_html=True)
 
-# ---------------- SIDEBAR ----------------
-page = st.sidebar.selectbox(
-    "Navigation",
-    ["🏥 Dashboard", "🤖 AI Doctor Chat", "🧠 Image Analysis", "📊 Patient History"]
-)
+# ---------------- INPUTS ----------------
+st.sidebar.header("Patient Data")
 
-# =====================================================
-# 🏥 DASHBOARD
-# =====================================================
-if page == "🏥 Dashboard":
+age = st.sidebar.slider("Age", 1, 100, 30)
+heart_rate = st.sidebar.slider("Heart Rate", 40, 180, 75)
+blood_pressure = st.sidebar.slider("Blood Pressure", 80, 200, 120)
+glucose = st.sidebar.slider("Glucose", 60, 200, 100)
+bmi = st.sidebar.slider("BMI", 15.0, 40.0, 24.0)
+smoking = st.sidebar.selectbox("Smoking", ["No", "Yes"])
 
-    st.header("Patient Health Analysis")
+# ---------------- ANALYSIS ----------------
+if st.sidebar.button("Analyze Health"):
 
-    col1, col2, col3 = st.columns(3)
+    risk = calculate_risk(
+        age,
+        heart_rate,
+        blood_pressure,
+        glucose,
+        bmi,
+        smoking
+    )
+
+    col1, col2 = st.columns(2)
 
     with col1:
-        age = st.slider("Age", 1, 100, 30)
-        weight = st.slider("Weight (kg)", 30, 150, 70)
+        st.subheader("Risk Gauge")
+        st.plotly_chart(risk_gauge(risk), use_container_width=True)
 
     with col2:
-        heart_rate = st.slider("Heart Rate", 40, 180, 75)
-        blood_pressure = st.slider("Blood Pressure", 80, 200, 120)
+        st.subheader("AI Recommendation")
+        st.success(ai_recommendation(risk))
 
-    with col3:
-        glucose = st.slider("Glucose", 70, 200, 100)
-        smoking = st.selectbox("Smoking", ["No", "Yes"])
-
-    if st.button("Analyze Health"):
-
-        risk = calculate_risk(
-            age, weight, heart_rate,
-            blood_pressure, glucose, smoking
-        )
-
-        st.subheader(f"Risk Score: {risk:.1f}%")
-
-        fig = create_risk_chart(risk)
-        st.pyplot(fig)
-
-        recommendations = generate_recommendations(risk)
-
-        st.success("AI Recommendations")
-        for r in recommendations:
-            st.write("✅", r)
-
-        save_patient({
-            "date": str(datetime.now()),
-            "risk": risk
-        })
-
-        pdf = generate_pdf_report(risk, recommendations)
-
-        st.download_button(
-            "📄 Download Medical Report",
-            pdf,
-            file_name="medical_report.pdf"
-        )
-
-# =====================================================
-# 🤖 AI CHAT
-# =====================================================
-elif page == "🤖 AI Doctor Chat":
-
-    st.header("AI Doctor Chat")
-
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-
-    user_input = st.chat_input("Describe your symptoms...")
-
-    if user_input:
-        st.session_state.messages.append(("You", user_input))
-        response = "Based on your symptoms, I recommend medical evaluation and healthy monitoring."
-        st.session_state.messages.append(("AI Doctor", response))
-
-    for role, msg in st.session_state.messages:
-        st.write(f"**{role}:** {msg}")
-
-# =====================================================
-# 🧠 IMAGE ANALYSIS
-# =====================================================
-elif page == "🧠 Image Analysis":
-
-    st.header("Medical Image Analysis")
-
-    file = st.file_uploader("Upload Medical Image")
-
-    if file:
-        result = analyze_medical_image(file)
-        st.image(file)
-        st.success(result)
-
-# =====================================================
-# 📊 HISTORY
-# =====================================================
-elif page == "📊 Patient History":
-
-    st.header("Patient History")
-
-    data = load_patients()
-
-    if len(data) > 0:
-        df = pd.DataFrame(data)
-        st.dataframe(df)
-
-        fig = create_risk_chart(df["risk"].iloc[-1])
-        st.pyplot(fig)
-    else:
-        st.info("No patient history yet.")
+    st.subheader("Patient Risk Trend")
+    st.pyplot(risk_trend_chart(risk))
