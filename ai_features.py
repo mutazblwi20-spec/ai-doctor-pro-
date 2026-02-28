@@ -1,32 +1,44 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import json
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
-from io import BytesIO
-from PIL import Image
+import os
 
-DB_FILE = "patients.json"
+DATA_FILE = "patients.json"
 
 # =============================
-# RISK CALCULATION
+# BMI
 # =============================
-def calculate_risk(age, weight, heart_rate, blood_pressure, glucose, smoking):
-
-    risk = (
-        age * 0.2 +
-        weight * 0.1 +
-        heart_rate * 0.2 +
-        blood_pressure * 0.2 +
-        glucose * 0.2 +
-        (15 if smoking == "Yes" else 0)
-    )
-
-    return min(risk / 2, 100)
-
+def calculate_bmi(weight, height):
+    height_m = height / 100
+    return round(weight / (height_m**2), 2)
 
 # =============================
-# AI RECOMMENDATIONS
+# Risk Calculator (AI Logic)
+# =============================
+def calculate_risk(age, bmi, heart_rate,
+                   blood_pressure, glucose,
+                   cholesterol, smoking, activity):
+
+    score = 0
+
+    score += age * 0.2
+    score += bmi * 1.5
+    score += heart_rate * 0.1
+    score += blood_pressure * 0.15
+    score += glucose * 0.2
+    score += cholesterol * 0.15
+
+    if smoking == "Yes":
+        score += 15
+
+    if activity == "Low":
+        score += 10
+
+    risk = min(score / 5, 100)
+    return round(risk, 2)
+
+# =============================
+# Recommendations
 # =============================
 def generate_recommendations(risk):
 
@@ -34,26 +46,25 @@ def generate_recommendations(risk):
         return [
             "Maintain healthy lifestyle",
             "Exercise regularly",
-            "Annual health check"
+            "Annual medical check"
         ]
 
     elif risk < 60:
         return [
-            "Reduce salt intake",
-            "Monitor blood pressure",
-            "Improve sleep quality"
+            "Improve diet",
+            "Reduce sugar intake",
+            "Monitor blood pressure"
         ]
 
     else:
         return [
-            "Consult doctor immediately",
-            "Monitor glucose daily",
-            "Reduce stress and smoking"
+            "Consult a doctor soon",
+            "Perform full medical tests",
+            "Lifestyle change required"
         ]
 
-
 # =============================
-# RISK GAUGE CHART
+# Gauge Chart
 # =============================
 def create_risk_chart(risk):
 
@@ -65,79 +76,29 @@ def create_risk_chart(risk):
         wedgeprops=dict(width=0.35)
     )
 
-    ax.text(
-        0, 0,
-        f"{risk:.1f}%",
-        ha='center',
-        va='center',
-        fontsize=20,
-        fontweight='bold'
-    )
+    ax.text(0, 0, f"{risk}%", ha="center", va="center",
+            fontsize=22, fontweight="bold")
 
     return fig
 
-
 # =============================
-# SAVE PATIENT
+# Save History
 # =============================
 def save_patient(data):
 
-    try:
-        with open(DB_FILE, "r") as f:
-            patients = json.load(f)
-    except:
-        patients = []
+    history = load_patients()
+    history.append(data)
 
-    patients.append(data)
-
-    with open(DB_FILE, "w") as f:
-        json.dump(patients, f)
-
+    with open(DATA_FILE, "w") as f:
+        json.dump(history, f)
 
 # =============================
-# LOAD PATIENTS
+# Load History
 # =============================
 def load_patients():
 
-    try:
-        with open(DB_FILE, "r") as f:
-            return json.load(f)
-    except:
+    if not os.path.exists(DATA_FILE):
         return []
 
-
-# =============================
-# PDF REPORT
-# =============================
-def generate_pdf_report(risk, recommendations):
-
-    buffer = BytesIO()
-    c = canvas.Canvas(buffer, pagesize=letter)
-
-    c.drawString(100, 750, "AI Doctor Pro Medical Report")
-    c.drawString(100, 720, f"Risk Score: {risk:.1f}%")
-
-    y = 690
-    for rec in recommendations:
-        c.drawString(100, y, f"- {rec}")
-        y -= 20
-
-    c.save()
-    buffer.seek(0)
-
-    return buffer
-
-
-# =============================
-# IMAGE ANALYSIS (Demo AI)
-# =============================
-def analyze_medical_image(file):
-
-    img = Image.open(file)
-
-    width, height = img.size
-
-    if width * height > 500000:
-        return "Possible abnormal tissue detected (AI estimation)"
-    else:
-        return "No major abnormalities detected"
+    with open(DATA_FILE, "r") as f:
+        return json.load(f)
