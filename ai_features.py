@@ -1,41 +1,28 @@
-import numpy as np
-import matplotlib.pyplot as plt
 import json
 import os
+import matplotlib.pyplot as plt
 
 DATA_FILE = "patients.json"
 
 # =============================
-# BMI
-# =============================
-def calculate_bmi(weight, height):
-    height_m = height / 100
-    return round(weight / (height_m**2), 2)
-
-# =============================
-# Risk Calculator (AI Logic)
+# Risk Calculation
 # =============================
 def calculate_risk(age, bmi, heart_rate,
                    blood_pressure, glucose,
-                   cholesterol, smoking, activity):
+                   cholesterol, smoking):
 
-    score = 0
+    risk = (
+        age * 0.15 +
+        bmi * 0.2 +
+        heart_rate * 0.1 +
+        blood_pressure * 0.15 +
+        glucose * 0.2 +
+        cholesterol * 0.1 +
+        (15 if smoking == "Yes" else 0)
+    )
 
-    score += age * 0.2
-    score += bmi * 1.5
-    score += heart_rate * 0.1
-    score += blood_pressure * 0.15
-    score += glucose * 0.2
-    score += cholesterol * 0.15
+    return min(risk / 3, 100)
 
-    if smoking == "Yes":
-        score += 15
-
-    if activity == "Low":
-        score += 10
-
-    risk = min(score / 5, 100)
-    return round(risk, 2)
 
 # =============================
 # Recommendations
@@ -52,21 +39,22 @@ def generate_recommendations(risk):
     elif risk < 60:
         return [
             "Improve diet",
-            "Reduce sugar intake",
-            "Monitor blood pressure"
+            "Monitor blood pressure",
+            "Reduce stress"
         ]
 
     else:
         return [
-            "Consult a doctor soon",
-            "Perform full medical tests",
+            "Consult doctor soon",
+            "Monitor glucose daily",
             "Lifestyle change required"
         ]
+
 
 # =============================
 # Gauge Chart
 # =============================
-def create_risk_chart(risk):
+def draw_gauge(risk):
 
     fig, ax = plt.subplots()
 
@@ -76,13 +64,20 @@ def create_risk_chart(risk):
         wedgeprops=dict(width=0.35)
     )
 
-    ax.text(0, 0, f"{risk}%", ha="center", va="center",
-            fontsize=22, fontweight="bold")
+    ax.text(
+        0, 0,
+        f"{risk:.0f}%",
+        ha='center',
+        va='center',
+        fontsize=22,
+        fontweight='bold'
+    )
 
     return fig
 
+
 # =============================
-# Save History
+# Save Patient
 # =============================
 def save_patient(data):
 
@@ -92,8 +87,9 @@ def save_patient(data):
     with open(DATA_FILE, "w") as f:
         json.dump(history, f)
 
+
 # =============================
-# Load History
+# Load Patients
 # =============================
 def load_patients():
 
@@ -102,3 +98,19 @@ def load_patients():
 
     with open(DATA_FILE, "r") as f:
         return json.load(f)
+
+
+# =============================
+# Trend Chart
+# =============================
+def trend_chart(history):
+
+    risks = [h["risk"] for h in history]
+
+    fig, ax = plt.subplots()
+    ax.plot(risks, marker="o")
+    ax.set_title("Patient Risk Trend")
+    ax.set_ylabel("Risk %")
+    ax.set_xlabel("Visits")
+
+    return fig
